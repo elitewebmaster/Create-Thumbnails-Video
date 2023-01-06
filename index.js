@@ -27,7 +27,7 @@ function uploadFile(cb, bucket, filename, key, contentType){
   var readStream = fs.createReadStream(filename),
       gzip = false,
       params = {
-        ACL: 'public-read',
+        ACL: process.env.S3_BUCKET_ACL,
         Bucket: bucket,
         Key: key,
         ContentType: contentType
@@ -53,7 +53,7 @@ function uploadFile(cb, bucket, filename, key, contentType){
         deleteFile(filename);
     }
   }).on('httpUploadProgress', function(evt) {
-			console.log(filename, 'Progress:', evt.loaded, '/', evt.total);
+	console.log(filename, 'Progress:', evt.loaded, '/', evt.total);
   }).send(cb);
 
 }
@@ -65,7 +65,7 @@ function s4() {
 }
 
 function guid() {
-return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
+	return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 }
 
 function plusToSpace(str){
@@ -87,39 +87,26 @@ exports.handler = function(event, context) {
         nameOnly = url.slice(url.lastIndexOf("/") + 1, url.lastIndexOf(".")), 
         extension = ".png",
         uuidFilename = guid(), 
-        bucket = event.Records[0].s3.bucket.name, 
+        bucket = process.env.S3_BUCKET_NAME, 
         localTempFolder = "/tmp", 
         dimension = '120x90',
-        filesList = [];
-
-        
-   console.log("URL: " + url);
-   console.log("Random File: " + uuidFilename);
-   var filePath = somepath.join(localTempFolder, uuidFilename + (url.slice(url.lastIndexOf("."), url.length)));
-   console.log("File path: " + filePath);
-   var file = fs.createWriteStream(filePath, 'utf8');
+        filesList = [],
+	filePath = somepath.join(localTempFolder, uuidFilename + (url.slice(url.lastIndexOf("."), url.length))),
+	file = fs.createWriteStream(filePath, 'utf8');
+	
    file.on('finish', function(){ 
        console.log("File Downloaded");
        ffmpeg(filePath)
-                 .on('filenames', function(filenames) {
-                   console.log('screenshots are: ');   
+                 .on('filenames', function(filenames) {  
                    filesList = filenames.map(res => localTempFolder + "/" + res);
-                   console.log(filesList);
+                   console.log('screenshots are: ', filesList);
                  })
                  .on('error', function(err) {
-                  console.log('an error happened: ' + err.message);
+                   console.log('an error happened: ' + err.message);
                  })
                  .on('end', function() {
-                  console.log("***** File path: " + filePath);
+                   console.log("***** File path: " + filePath);
                    console.log('screenshots were saved');
-   
-                   var videoOptions = {
-                     loop: 0.5, 
-                     transition: false,
-                     videoCodec: 'libvpx',
-                     size: dimension,
-                     format: 'webm'
-                   }
    
                     let tempArr = [];
                     for(let a = 0; a < filesList.length; a++){
@@ -134,6 +121,14 @@ exports.handler = function(event, context) {
                     filesList = tempArr;
                     console.log("Files left: ", filesList);
                    if(filesList.length > 0){
+			const videoOptions = {
+			     loop: 0.5, 
+			     transition: false,
+			     videoCodec: 'libvpx',
+			     size: dimension,
+			     format: 'webm'
+			}	
+			
                       videoshow(filesList, videoOptions).save(localTempFolder + "/" + uuidFilename + '.webm')
                         .on('start', function (command) {
                           console.log('ffmpeg videoshow process started:', command);
