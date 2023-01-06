@@ -1,18 +1,17 @@
 process.env["FFMPEG_PATH"] = process.env["LAMBDA_TASK_ROOT"] + "/ffmpeg/ffmpeg";
 process.env["FFPROBE_PATH"] = process.env["LAMBDA_TASK_ROOT"] + "/ffmpeg/ffprobe";
 
-var AWS = require('aws-sdk'),
+const AWS = require('aws-sdk'),
     fs = require('fs'),
     zlib = require('zlib'),
     somepath = require('path'),
     async = require('async'),
     ffmpeg = require('fluent-ffmpeg'),
-    videoshow = require('videoshow');
+    videoshow = require('videoshow'),
+    s3 = new AWS.S3();
 
 ffmpeg.setFfmpegPath(process.env["FFMPEG_PATH"]);
-ffmpeg.setFfprobePath(process.env["FFPROBE_PATH"]);
-
-var s3 = new AWS.S3();
+ffmpeg.setFfprobePath(process.env["FFPROBE_PATH"]); 
 
 function deleteFiles(localPath){
   localPath.map(res => {
@@ -24,9 +23,8 @@ function deleteFiles(localPath){
 }
 
 function uploadFile(cb, bucket, filename, key, contentType){
-  var readStream = fs.createReadStream(filename),
-      gzip = false,
-      params = {
+  const readStream = fs.createReadStream(filename), gzip = false;
+  var params = {
         ACL: process.env.S3_BUCKET_ACL,
         Bucket: bucket,
         Key: key,
@@ -47,9 +45,7 @@ function uploadFile(cb, bucket, filename, key, contentType){
 	s3.upload(params, function(err, data) {
     if (err) {
         console.log(err);
-      //  return err;
     } else {
-        console.log(data);
         deleteFile(filename);
     }
   }).on('httpUploadProgress', function(evt) {
